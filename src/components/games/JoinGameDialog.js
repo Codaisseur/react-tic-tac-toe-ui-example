@@ -53,14 +53,18 @@ class JoinGameDialog extends PureComponent {
 }
 
 const mapStateToProps = ({ currentUser, games }, { gameId }) => {
+  const currentUserId = currentUser && currentUser._id
   const game = games.filter((g) => (g._id === gameId))[0]
-  const isPlayer = game && game.players.filter((p) => (p.userId === currentUser._id)).length > 0
+  const isPlayer = game && currentUserId &&
+    (game.playerOneId === currentUserId || game.playerTwoId === currentUserId)
+  const isJoinable = game && !isPlayer &&
+    (!game.playerOneId || !game.playerTwoId)
 
   return {
     game,
     currentUser,
     isPlayer,
-    open: game && !isPlayer && game.players.length < 2
+    open: isJoinable
   }
 }
 

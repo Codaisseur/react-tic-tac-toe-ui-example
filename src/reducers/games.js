@@ -39,7 +39,11 @@ export default (state = [], { type, payload } = {}) => {
     case GAME_PLAYERS_UPDATED :
       return state.map((game) => {
         if (game._id === payload.game._id) {
-          return { ...payload.game, players: payload.players }
+          return {
+            ...payload.game,
+            playerOne: payload.players[0],
+            playerTwo: payload.players[1]
+          }
         }
         return game
       })

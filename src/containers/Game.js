@@ -7,7 +7,6 @@ import JoinGameDialog from '../components/games/JoinGameDialog'
 
 const playerShape = PropTypes.shape({
   userId: PropTypes.string.isRequired,
-  pairs: PropTypes.arrayOf(PropTypes.string).isRequired,
   name: PropTypes.string
 })
 
@@ -18,21 +17,19 @@ class Game extends PureComponent {
     subscribeToWebsocket: PropTypes.func.isRequired,
     game: PropTypes.shape({
       _id: PropTypes.string.isRequired,
+      board: PropTypes.arrayOf(PropTypes.string),
       userId: PropTypes.string.isRequired,
-      players: PropTypes.arrayOf(playerShape),
+      playerOneId: PropTypes.string,
+      playerOne: playerShape,
+      playerTwoId: PropTypes.string,
+      playerTwo: playerShape,
       draw: PropTypes.bool,
       updatedAt: PropTypes.string.isRequired,
       createdAt: PropTypes.string.isRequired,
-      started: PropTypes.bool,
-      turn: PropTypes.number.isRequired,
-      cards: PropTypes.arrayOf(PropTypes.shape({
-        symbol: PropTypes.string,
-        _id: PropTypes.string,
-        won: PropTypes.bool,
-        visible: PropTypes.bool
-      }))
     }),
-    currentPlayer: playerShape,
+    turn: PropTypes.number.isRequired,
+    started: PropTypes.bool,
+    isPlayer: playerShape,
     isPlayer: PropTypes.bool,
     isJoinable: PropTypes.bool,
     hasTurn: PropTypes.bool
@@ -49,7 +46,7 @@ class Game extends PureComponent {
   componentWillReceiveProps(nextProps) {
     const { game } = nextProps
 
-    if (game && !game.players[0].name) {
+    if (game && !game.playerOne) {
       this.props.fetchPlayers(game)
     }
   }
@@ -59,7 +56,9 @@ class Game extends PureComponent {
 
     if (!game) return null
 
-    const title = game.players.map(p => (p.name || null))
+    const title = [game.playerOne, game.playerTwo]
+      .filter(n => !!n)
+      .map(p => (p.name || null))
       .filter(n => !!n)
       .join(' vs ')
 
@@ -81,14 +80,24 @@ class Game extends PureComponent {
 
 const mapStateToProps = ({ currentUser, games }, { match }) => {
   const game = games.filter((g) => (g._id === match.params.gameId))[0]
-  const currentPlayer = game && game.players.filter((p) => (p.userId === currentUser._id))[0]
-  const hasTurn = !!currentPlayer && game.players[game.turn].userId === currentUser._id
+  const currentUserId = currentUser && currentUser._id
+  const squaresFilled = (game && game.board.filter(s => !null).length) || 0
+  const started = squaresFilled > 0
+  const isPlayer = game && currentUserId &&
+    (game.playerOneId === currentUserId || game.playerTwoId === currentUserId)
+  const turn = squaresFilled % 2
+  const hasTurn = isPlayer &&
+    (turn === 0 && game.playerOneId === currentUserId) ||
+    (turn === 1 && game.playerTwoId === currentUserId)
+  const isJoinable = game && !isPlayer &&
+    (!game.playerOneId || !game.playerTwoId)
+
   return {
-    currentPlayer,
+    isPlayer,
     game,
-    isPlayer: !!currentPlayer,
+    isPlayer,
     hasTurn,
-    isJoinable: game && !currentPlayer && game.players.length < 2
+    isJoinable
   }
 }
 
