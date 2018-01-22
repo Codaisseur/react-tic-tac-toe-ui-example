@@ -2,19 +2,24 @@ import React, { PureComponent } from 'react'
 import PropTypes from 'prop-types'
 import { connect } from 'react-redux'
 import { fetchOneGame, fetchPlayers } from '../actions/games/fetch'
+import patchGame from '../actions/games/patch'
 import { connect as subscribeToWebsocket } from '../actions/websocket'
 import JoinGameDialog from '../components/games/JoinGameDialog'
+import Square from '../components/games/Square'
 
 const playerShape = PropTypes.shape({
   userId: PropTypes.string.isRequired,
   name: PropTypes.string
 })
 
+const squareStyles = { display: 'flex', flexFlow: 'row wrap', width: 305, height: 305, margin: '100px auto'}
+
 class Game extends PureComponent {
   static propTypes = {
     fetchOneGame: PropTypes.func.isRequired,
     fetchPlayers: PropTypes.func.isRequired,
     subscribeToWebsocket: PropTypes.func.isRequired,
+    patchGame: PropTypes.func.isRequired,
     game: PropTypes.shape({
       _id: PropTypes.string.isRequired,
       board: PropTypes.arrayOf(PropTypes.string),
@@ -51,8 +56,24 @@ class Game extends PureComponent {
     }
   }
 
-  render() {
+  claimSquare = index => () => {
+    this.props.patchGame(this.props.game._id, { claim: index })
+  }
+
+  renderSquares = () => {
     const { game } = this.props
+    return game.board.map((s,i) => (
+      <Square
+        onClick={this.claimSquare(i)}
+        value={s}
+        key={i}
+      />
+    ))
+  }
+
+  render() {
+    console.log(this.props)
+    const { game, hasTurn } = this.props
 
     if (!game) return null
 
@@ -67,7 +88,9 @@ class Game extends PureComponent {
         <h1>Game!</h1>
         <p>{title}</p>
 
-        <h1>YOUR GAME HERE! :)</h1>
+        <div style={{ ...squareStyles, cursor: hasTurn ? 'pointer' : 'inherit' }}>
+          {this.renderSquares()}
+        </div>
 
         <h2>Debug Props</h2>
         <pre>{JSON.stringify(this.props, true, 2)}</pre>
@@ -81,7 +104,7 @@ class Game extends PureComponent {
 const mapStateToProps = ({ currentUser, games }, { match }) => {
   const game = games.filter((g) => (g._id === match.params.gameId))[0]
   const currentUserId = currentUser && currentUser._id
-  const squaresFilled = (game && game.board.filter(s => !null).length) || 0
+  const squaresFilled = (game && game.board.filter(s => !!s).length) || 0
   const started = squaresFilled > 0
   const isPlayer = game && currentUserId &&
     (game.playerOneId === currentUserId || game.playerTwoId === currentUserId)
@@ -97,12 +120,14 @@ const mapStateToProps = ({ currentUser, games }, { match }) => {
     game,
     isPlayer,
     hasTurn,
-    isJoinable
+    isJoinable,
+    squaresFilled
   }
 }
 
 export default connect(mapStateToProps, {
   subscribeToWebsocket,
   fetchOneGame,
-  fetchPlayers
+  fetchPlayers,
+  patchGame
 })(Game)
